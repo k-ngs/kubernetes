@@ -523,7 +523,7 @@ func TestCoreResourceEnqueue(t *testing.T) {
 			pods: []*v1.Pod{
 				// pod1 will requeue because created node has enough resources for pod1
 				st.MakePod().Name("pod2").Container("image").Req(map[v1.ResourceName]string{v1.ResourceCPU: "2", v1.ResourceMemory: "4"}).Obj(),
-				// pod2 will not requeue because created node has not enough CPU cores for pod2
+				// pod2 rejected by nodeResourceFit plugin because created node has not enough CPU cores for pod2
 				st.MakePod().Name("pod3").Container("image").Req(map[v1.ResourceName]string{v1.ResourceCPU: "3", v1.ResourceMemory: "1"}).Obj(),
 			},
 			triggerFn: func(testCtx *testutils.TestContext) error {
