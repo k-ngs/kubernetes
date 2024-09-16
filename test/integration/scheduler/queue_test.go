@@ -512,6 +512,31 @@ func TestCoreResourceEnqueue(t *testing.T) {
 			wantRequeuedPods:          sets.New("pod2"),
 			enableSchedulingQueueHint: []bool{true},
 		},
+		{
+			name: "Pods rejected when the node does not have enough resource",
+			initialNodes: []*v1.Node{
+				st.MakeNode().Name("fake-node").Capacity(map[v1.ResourceName]string{v1.ResourceCPU: "2", v1.ResourceMemory: "4"}).Obj(),
+			},
+			initialPods: []*v1.Pod{
+				st.MakePod().Name("pod1").Container("image").Node("fake-node").Req(map[v1.ResourceName]string{v1.ResourceCPU: "1", v1.ResourceMemory: "2"}).Obj(),
+			},
+			pods: []*v1.Pod{
+				// pod1 will requeue because created node has enough resources for pod1
+				st.MakePod().Name("pod2").Container("image").Req(map[v1.ResourceName]string{v1.ResourceCPU: "2", v1.ResourceMemory: "4"}).Obj(),
+				// pod2 will not requeue because created node has not enough CPU cores for pod2
+				st.MakePod().Name("pod3").Container("image").Req(map[v1.ResourceName]string{v1.ResourceCPU: "3", v1.ResourceMemory: "1"}).Obj(),
+			},
+			triggerFn: func(testCtx *testutils.TestContext) error {
+				// Trigger a NodeCreated event
+				node := st.MakeNode().Name("fake-node2").Capacity(map[v1.ResourceName]string{v1.ResourceCPU: "2", v1.ResourceMemory: "4"}).Obj()
+				if _, err := testCtx.ClientSet.CoreV1().Nodes().Create(testCtx.Ctx, node, metav1.CreateOptions{}); err != nil {
+					return fmt.Errorf("failed to create a new node: %w", err)
+				}
+				return nil
+			},
+			wantRequeuedPods:          sets.New("pod2"),
+			enableSchedulingQueueHint: []bool{true},
+		},
 	}
 
 	for _, tt := range tests {
